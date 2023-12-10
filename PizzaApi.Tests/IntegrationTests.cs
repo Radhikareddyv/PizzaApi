@@ -2,6 +2,7 @@ namespace PizzaApi.Tests
 {
     using System;
     using System.Collections.Generic;
+    using System.Globalization;
     using System.Linq;
     using System.Net;
     using System.Net.Http;
@@ -14,6 +15,7 @@ namespace PizzaApi.Tests
     using FluentAssertions;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.CodeAnalysis;
+    using Microsoft.Extensions.Options;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Serialization;
     using NUnit.Framework;
@@ -74,10 +76,10 @@ namespace PizzaApi.Tests
             // Implement the code to retrieve the completed orders so that the assertion succeeds.
             var completedPizzaOrders = new List<PizzaOrder>();
             var response = await this.Client.GetAsync("PizzaOrders?status=Completed");
-            
+
             var content = await response.Content.ReadAsStringAsync();
             completedPizzaOrders = JsonConvert.DeserializeObject<List<PizzaOrder>>(content);
-            
+
             response.EnsureSuccessStatusCode();
             completedPizzaOrders.Should().HaveCount(385);
         }
@@ -93,7 +95,8 @@ namespace PizzaApi.Tests
             {
                 Name = "TestPizzaOrder",
                 OrderDate = DateTime.Now,
-                Status = PizzaOrderStatus.Pending
+                Status = PizzaOrderStatus.Pending,
+                Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } }
             };
             var options = new JsonSerializerSettings
             {
@@ -101,16 +104,13 @@ namespace PizzaApi.Tests
                 ContractResolver = new CamelCasePropertyNamesContractResolver()
             };
 
-            createdPizzaOrder.Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } };
-
             var serializedContent = JsonConvert.SerializeObject(createdPizzaOrder, options);
             var content = new StringContent(serializedContent.ToString(), Encoding.UTF8, "application/json");
 
             // Implement the code to Post a pizza order to the system and ensure it was added successfully.
             var response = await this.Client.PostAsync("PizzaOrders", content);
             response.EnsureSuccessStatusCode();
-            var res = await response.Content.ReadAsStringAsync();
-            Assert.AreEqual(response.StatusCode, HttpStatusCode.Created); 
+            Assert.AreEqual(response.StatusCode, HttpStatusCode.Created);
         }
 
         /// <summary>
@@ -122,19 +122,20 @@ namespace PizzaApi.Tests
             PizzaOrder deletedPizzaOrder = default;
             // Implement the code to Delete a pizza order and ensure that the order status is successfully deleted.
             // You may add your own pizza and delete that one or delete on that is already there.
-            PizzaOrder createdPizzaOrder = new PizzaOrder()
-            {
-                Name = "TestPizzaOrder",
-                OrderDate = DateTime.Now,
-                Status = PizzaOrderStatus.Pending
-            };
+
             var options = new JsonSerializerSettings
             {
                 Formatting = Formatting.Indented,
                 ContractResolver = new CamelCasePropertyNamesContractResolver()
             };
 
-            createdPizzaOrder.Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } };
+            PizzaOrder createdPizzaOrder = new PizzaOrder()
+            {
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now,
+                Status = PizzaOrderStatus.Pending,
+                Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } }
+            };
 
             var serializedContent = JsonConvert.SerializeObject(createdPizzaOrder, options);
             var content = new StringContent(serializedContent.ToString(), Encoding.UTF8, "application/json");
@@ -143,6 +144,53 @@ namespace PizzaApi.Tests
             var result = await this.Client.PostAsync("PizzaOrders", content);
             var idToDelete = await result.Content.ReadAsStringAsync();
             var response = await this.Client.DeleteAsync("PizzaOrders/" + idToDelete);
+
+            // Replace this assertion with something more appropriate.
+            response.EnsureSuccessStatusCode();
+        }
+
+        /// <summary>
+        /// Delete a Pizza Order from the system using PUT PizzaOrders/{id}
+        /// </summary>
+        [Test]
+        public virtual async Task UpdatePizzaOrder()
+        {
+            PizzaOrder updatePizzaOrder = default;
+            // Implement the code to update a pizza order and ensure that the order status is successfully transitioned from pending to in-progress and completed.
+            // You may add your own pizza and delete that one or delete on that is already there.
+
+            var options = new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            };
+
+            PizzaOrder createdPizzaOrder = new PizzaOrder()
+            {
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now,
+                Status = PizzaOrderStatus.Pending,
+                Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } }
+            };
+
+            var serializedContent = JsonConvert.SerializeObject(createdPizzaOrder, options);
+            var content = new StringContent(serializedContent.ToString(), Encoding.UTF8, "application/json");
+
+            // Implement the code to Post a pizza order to the system and ensure it was added successfully.
+            var result = await this.Client.PostAsync("PizzaOrders", content);
+            var idToUpdate = await result.Content.ReadAsStringAsync();
+            updatePizzaOrder = new PizzaOrder()
+            {
+                Id = long.Parse(idToUpdate),
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now,
+                Status = PizzaOrderStatus.InProgress,
+                Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } }
+            };
+            var updateSerializedContent = JsonConvert.SerializeObject(updatePizzaOrder, options);
+            var updateContent = new StringContent(updateSerializedContent.ToString(), Encoding.UTF8, "application/json");
+
+            var response = await this.Client.PutAsync("PizzaOrders", updateContent);
 
             // Replace this assertion with something more appropriate.
             response.EnsureSuccessStatusCode();
@@ -166,6 +214,19 @@ namespace PizzaApi.Tests
                 { "September", 332.0m }, { "October", 292.0m }, { "November", 696.0m }, { "December", 816.0m }
             };
 
+            var completedPizzaOrders = new List<PizzaOrder>();
+            var response = await this.Client.GetAsync("PizzaOrders?status=Completed");
+
+            var content = await response.Content.ReadAsStringAsync();
+            completedPizzaOrders = JsonConvert.DeserializeObject<List<PizzaOrder>>(content);
+            actualResult = completedPizzaOrders.Where(x => x.OrderDate.Year == DateTime.Now.AddYears(-1).Year)
+                .GroupBy(x => new { x.OrderDate.Year, x.OrderDate.Month }, (key, group) =>
+                    new
+                    {
+                        Month = DateTimeFormatInfo.CurrentInfo.GetMonthName(key.Month),
+                        TotalCost = group.Sum(order => order.Pizzas.Sum(pizza => pizza.Price))
+                    }).ToDictionary(x => x.Month, x => x.TotalCost);
+
 
             actualResult.Should().Equal(expectedResult);
         }
@@ -175,6 +236,176 @@ namespace PizzaApi.Tests
          * Points will be given for tests that are written, even if they are not implemented provided we can understand what the test is trying to achieve.
          */
 
+        [Test]
+        public virtual async Task PostPizzaOrderWithDateTimeInPast()
+        {
+            PizzaOrder createdPizzaOrder = new PizzaOrder()
+            {
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now.AddMinutes(-5),
+                Status = PizzaOrderStatus.Pending,
+                Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } }
+            };
 
+            var options = new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            };
+
+            var serializedContent = JsonConvert.SerializeObject(createdPizzaOrder, options);
+            var content = new StringContent(serializedContent.ToString(), Encoding.UTF8, "application/json");
+
+            // Implement the code to Post a pizza order to the system and ensure it was added successfully.
+            var response = await this.Client.PostAsync("PizzaOrders", content);
+            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Test]
+        public virtual async Task PostPizzaOrderWithNoPizzas()
+        {
+            PizzaOrder createdPizzaOrder = new PizzaOrder()
+            {
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now.AddMinutes(-5),
+                Status = PizzaOrderStatus.Pending,
+                Pizzas = new List<Pizza>() { }
+            };
+
+            var options = new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            };
+
+            var serializedContent = JsonConvert.SerializeObject(createdPizzaOrder, options);
+            var content = new StringContent(serializedContent.ToString(), Encoding.UTF8, "application/json");
+
+            // Implement the code to Post a pizza order to the system and ensure it was added successfully.
+            var response = await this.Client.PostAsync("PizzaOrders", content);
+            Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Test]
+        public virtual async Task UpdateWithNotExistingId()
+        {
+            var updatePizzaOrder = new PizzaOrder()
+            {
+                Id = 12345678,
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now,
+                Status = PizzaOrderStatus.InProgress,
+                Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } }
+            };
+            var options = new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            };
+            var updateSerializedContent = JsonConvert.SerializeObject(updatePizzaOrder, options);
+            var updateContent = new StringContent(updateSerializedContent.ToString(), Encoding.UTF8, "application/json");
+
+            var response = await this.Client.PutAsync("PizzaOrders", updateContent);
+
+            // Replace this assertion with something more appropriate.
+            Assert.AreEqual(response.StatusCode, HttpStatusCode.NotFound);
+        }
+
+        [Test]
+        public virtual async Task UpdateCompletedPizzaOrder()
+        {
+            PizzaOrder updatePizzaOrder = default;
+            // Implement the code to update a pizza order and ensure that the order status is successfully transitioned from pending to in-progress and completed.
+            // You may add your own pizza and delete that one or delete on that is already there.
+
+            var options = new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            };
+
+            PizzaOrder createdPizzaOrder = new PizzaOrder()
+            {
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now,
+                Status = PizzaOrderStatus.Completed,
+                Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } }
+            };
+
+            var serializedContent = JsonConvert.SerializeObject(createdPizzaOrder, options);
+            var content = new StringContent(serializedContent.ToString(), Encoding.UTF8, "application/json");
+
+            // Implement the code to Post a pizza order to the system and ensure it was added successfully.
+            var result = await this.Client.PostAsync("PizzaOrders", content);
+            var idToUpdate = await result.Content.ReadAsStringAsync();
+            updatePizzaOrder = new PizzaOrder()
+            {
+                Id = long.Parse(idToUpdate),
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now,
+                Status = PizzaOrderStatus.InProgress,
+                Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } }
+            };
+            var updateSerializedContent = JsonConvert.SerializeObject(updatePizzaOrder, options);
+            var updateContent = new StringContent(updateSerializedContent.ToString(), Encoding.UTF8, "application/json");
+
+            var response = await this.Client.PutAsync("PizzaOrders", updateContent);
+
+            // Replace this assertion with something more appropriate.
+            Assert.AreEqual(response.StatusCode, HttpStatusCode.BadRequest);
+        }
+
+        [Test]
+        public virtual async Task UpdatePizzaOrderWithNoPizzas()
+        {
+            PizzaOrder updatePizzaOrder = default;
+            // Implement the code to update a pizza order and ensure that the order status is successfully transitioned from pending to in-progress and completed.
+            // You may add your own pizza and delete that one or delete on that is already there.
+
+            var options = new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            };
+
+            PizzaOrder createdPizzaOrder = new PizzaOrder()
+            {
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now,
+                Status = PizzaOrderStatus.Pending,
+                Pizzas = new List<Pizza>() { new Pizza() { Name = "TestPizza", Price = 10, Size = PizzaSize.Medium } }
+            };
+
+            var serializedContent = JsonConvert.SerializeObject(createdPizzaOrder, options);
+            var content = new StringContent(serializedContent.ToString(), Encoding.UTF8, "application/json");
+
+            // Implement the code to Post a pizza order to the system and ensure it was added successfully.
+            var result = await this.Client.PostAsync("PizzaOrders", content);
+            var idToUpdate = await result.Content.ReadAsStringAsync();
+            updatePizzaOrder = new PizzaOrder()
+            {
+                Id = long.Parse(idToUpdate),
+                Name = "TestPizzaOrder",
+                OrderDate = DateTime.Now,
+                Status = PizzaOrderStatus.InProgress,
+                Pizzas = new List<Pizza>() { }
+            };
+            var updateSerializedContent = JsonConvert.SerializeObject(updatePizzaOrder, options);
+            var updateContent = new StringContent(updateSerializedContent.ToString(), Encoding.UTF8, "application/json");
+
+            var response = await this.Client.PutAsync("PizzaOrders", updateContent);
+
+            // Replace this assertion with something more appropriate.
+            Assert.AreEqual(response.StatusCode, HttpStatusCode.BadRequest);
+        }
+
+        [Test]
+        public virtual async Task DeletePizzaOrderWithNonExistingId()
+        {
+            var response = await this.Client.DeleteAsync("PizzaOrders/123456789");
+
+            // Replace this assertion with something more appropriate.
+            Assert.AreEqual(response.StatusCode, HttpStatusCode.NotFound);
+        }
     }
 }
